@@ -38,9 +38,17 @@ function startK8s(){
 	echo "# bootstrap cluster"             
 	ansible-playbook -i $ANSIBLE_INVENTORY -e version=${K8S_VERSION} $CURDIR/ansible/bootstrapCluster.yaml
 
-	#echo "# Configure local client"
-	#ansible-playbook -i $ANSIBLE_INVENTORY --private-key $PRIVATE_KEY ansible/configureClient.yaml
-	
+}
+
+function installDashboard(){
+	echo "# installDashboard" 
+	kubectl apply -f $CURDIR/dashboard/kubernetes-dashboard-deployment.yaml
+	kubectl apply -f $CURDIR/dashboard/auth.yaml
+
+	kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}')
+	port=`kubectl get service -n kubernetes-dashboard | grep kubernetes-dashboard | awk  '{split($5,port,/[:/]/); print port[2]}'`
+	echo "your dashboard url: https://your_ip:$port/#/login"
+
 }
 
 #Print the usage message
@@ -57,3 +65,4 @@ fi
 
 installPkg 
 startK8s $1
+installDashboard

@@ -1,0 +1,19 @@
+ 
+- hosts: master
+
+  tasks:
+    - debug: msg={{ansible_env.HOME}}
+    
+    - name: install nfs client          
+      yum:
+        name:
+         - nfs-utils
+        state: present
+        
+    - name: start nfs client          
+      command: '{{ item }}'
+      with_items:
+        - kubectl apply -f kubernetes-dashboard-deployment.yml
+        - kubectl apply -f auth.yml
+
+    
