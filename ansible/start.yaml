@@ -1,0 +1,15 @@
+---
+  - hosts: localhost
+    connection: local 
+    tasks:
+
+    - name: create inventory directory
+      file:
+        path: "{{lookup('env', 'PWD')}}/inventory"
+        state: directory
+        mode: 0776
+        
+    - name: "set ansible hosts"
+      template:
+        src: "{{lookup('env', 'PWD')}}/hosts.j2"
+        dest: "{{lookup('env', 'PWD')}}/inventory/hosts"

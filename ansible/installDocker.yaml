@@ -1,0 +1,58 @@
+---
+- hosts: docker
+  become: true
+        
+  tasks:
+    - name: install needed pkg          
+      yum:
+        name:
+         - wget
+         - nfs-utils
+        state: present
+        
+    - name: remove docker old version           
+      yum:
+        name:
+          - docker 
+          - docker-client 
+          - docker-client-latest 
+          - docker-common 
+          - docker-latest 
+          - docker-latest-logrotate 
+          - docker-logrotate 
+          - docker-selinux 
+          - docker-engine-selinux 
+          - docker-engine
+        state: absent 
+        
+    - name: install yum-utils device-mapper-persistent-data lvm2          
+      yum:
+        name:
+         - yum-utils
+         - device-mapper-persistent-data
+         - lvm2
+        state: present
+        
+    - name: yum add-repo  
+      #国内
+      #command: 'yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo'
+      command: 'yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo'      
+      
+      
+    - name: install docker-ce          
+      yum:
+        name: docker-ce
+        state: present
+        
+    - name: start docker          
+      command: '{{ item }}'
+      with_items:
+        - systemctl start docker
+        - systemctl daemon-reload
+        - systemctl enable docker
+      
+    - name: Add user to docker group
+      user:
+        name: "{{ansible_user}}"
+        append: yes
+        groups: docker

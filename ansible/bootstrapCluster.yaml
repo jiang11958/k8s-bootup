@@ -1,0 +1,110 @@
+---
+- hosts: all
+
+  pre_tasks:
+    - name: Reset cluster
+      shell: kubeadm reset --force
+      become: true
+
+  tasks:
+    - name: Generate token
+      shell: kubeadm token generate
+      register: token
+      run_once: true
+    - debug: msg={{token.stdout}}
+    
+ 
+    
+- hosts: master
+
+  #post_task:
+  #  - name:  wait for node to come up
+  #    shell: kubectl  get pods $( kubectl get pods -A | grep ca- | awk '{print $2 }' ) -n orderer-cluster -o json
+  #    register: kubectl_get_pods
+  #    until: kubectl_get_pods.stdout|from_json|json_query('items[*].status.phase')|unique == ["Pending"]
+  #    retries: 600
+  #    delay: 2
+  tasks:
+    - debug: msg={{ansible_env.HOME}}
+    
+    - name: install nfs client          
+      yum:
+        name:
+         - nfs-utils
+        state: present
+        
+    - name: start nfs client          
+      command: '{{ item }}'
+      with_items:
+        - systemctl start nfs
+        - systemctl enable nfs
+
+    
+    #- name: Write kubeadm config
+    #  copy:
+    #    dest: ./kubeadm-config.yaml
+    #    content: |
+    #        apiVersion: kubeadm.k8s.io/v1beta2
+    #        kind: ClusterConfiguration
+    #        kubernetesVersion: v{{version}}
+    #        controlPlaneEndpoint: "{{MASTER_API_IP}}:6443"
+    #        networking:
+    #          serviceSubnet: "{{SERVICE_CIDR}}"
+    #          podSubnet: "{{POD_NETWORK_CIDR}}"
+    #          dnsDomain: "cluster.local"
+
+              
+    - name: Init master 
+      #https://kubernetes.io/docs/reference/setup-tools/kubeadm/kubeadm-init/
+      shell: kubeadm init --service-dns-domain "cluster.local" --image-repository "registry.cn-hangzhou.aliyuncs.com/google_containers"  --kubernetes-version v{{version}} --control-plane-endpoint "{{MASTER_API_IP}}:6443" --pod-network-cidr "{{POD_NETWORK_CIDR}}" --service-cidr "{{SERVICE_CIDR}}" --token {{token.stdout}} --token-ttl 0
+      register: kubeadm_init
+      become: true
+      
+    #- debug: msg={{ kubeadm_init.stdout_lines }}
+    
+    - name: "Make directory"
+      file:
+        path: "{{ansible_env.HOME}}/.kube"
+        state: directory
+
+    - name: "Copy config"
+      copy:
+        src: "/etc/kubernetes/admin.conf"
+        dest: "{{ansible_env.HOME}}/.kube/config"
+        owner: "{{ansible_user}}"
+        group: "{{ansible_user}}"
+        remote_src: yes
+      become: true
+      
+    - name: Install networking plugin - Calico
+      shell: kubectl apply -f  {{ lookup('env', 'PWD') }}/ansible/calico-3.13.1.yaml
+      run_once: true
+      
+    # - name: Generate token
+    #   shell: kubeadm token create --print-join-command
+    #   register: token
+    #   run_once: true
+    # - debug: msg={{token.stdout}}
+    # 
+    # - name: Set kubeadm_token to generated token
+    #   set_fact:
+    #     kubeadm_token: "{{ token.stdout }}"
+    #   when: kubeadm_token is not defined
+
+- hosts: worker
+  tasks:
+    - name: Join worker node
+      shell: kubeadm join --token {{ token.stdout }} {{ MASTER_API_IP }}:6443 --discovery-token-unsafe-skip-ca-verification
+      become: true
+
+- hosts: master
+  tasks:
+    - name: wait for worker nodes join
+      shell: kubectl get nodes
+      register: kubectl_wait_nodes
+      until: '"NotReady" not in kubectl_wait_nodes.stdout'
+      retries: 120
+      delay: 5
+
+
+    

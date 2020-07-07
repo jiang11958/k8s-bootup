@@ -1,0 +1,27 @@
+# Ansible inventory file
+
+[master]
+{{master.in_ip}} ansible_ssh_port={{master.port}} ansible_ssh_user={{master.user}} ansible_ssh_pass={{master.pass}}
+
+[worker]
+{% for node in nodes %}
+{{node.in_ip}} ansible_ssh_port={{node.port}} ansible_ssh_user={{node.user}} ansible_ssh_pass={{node.pass}}
+{% endfor %}
+
+[docker:children]
+master
+worker
+
+[kubeadm:children]
+master
+worker
+
+{% if nfs is defined %}
+[nfs]
+{{nfs.in_ip}} ansible_ssh_port={{nfs.port}} ansible_ssh_user={{nfs.user}} ansible_ssh_pass={{nfs.pass}}
+{% endif %}
+
+[all:vars]
+MASTER_API_IP={{master.in_ip}}
+POD_NETWORK_CIDR={{podNetworkCidr}}
+SERVICE_CIDR={{serviceCidr}}
