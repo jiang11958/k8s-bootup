@@ -6,14 +6,14 @@ sh run.sh "{'podNetworkCidr':'10.100.0.1/16','serviceCidr':'10.96.0.0/12','maste
 {
 	"podNetworkCidr": "10.100.0.1/16", #k8s network setting
 	"serviceCidr": "10.96.0.0/12",     #k8s network setting
-	"master": {
+	"master": {                        #master
 		"in_ip": "172.21.28.226",      #lan ip 
 		"ip": "161.117.248.84",        #internet ip 
 		"port": 22,                    #ssh port
 		"user": "root",                #ssh username
 		"pass": "password"             #ssh password
 	},
-	"nodes": [{
+	"nodes": [{                        #node
 			"in_ip": "172.21.28.225",
 			"ip": "161.117.249.248",
 			"port": 22,
